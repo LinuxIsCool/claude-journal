@@ -10,5 +10,8 @@
   "skills": ["./skills/"],
   "commands": ["./commands/"],
   "agents": ["./agents/scribe.md"],
-  "hooks": "./hooks/hooks.json"
+  "hooks": {
+    "SessionStart": [{"hooks": [{"type": "command", "command": "uv run ${CLAUDE_PLUGIN_ROOT}/hooks/session-nudge.py", "timeout": 5}]}],
+    "Stop": [{"hooks": [{"type": "command", "command": "uv run ${CLAUDE_PLUGIN_ROOT}/hooks/session-journal-offer.py", "timeout": 5}]}]
+  }
 }
