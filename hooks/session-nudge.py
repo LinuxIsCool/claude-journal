@@ -83,7 +83,7 @@ def main():
         fm = parse_frontmatter(latest)
         title = fm.get("title", latest.stem)
         time_part = latest.stem[:5].replace("-", ":")
-        output(f"Today's journal: {len(today_entries)} entries. Latest: \"{title}\" ({time_part}).")
+        output(f"[journal] {len(today_entries)} entries today · latest: \"{title}\" ({time_part})")
         return
 
     # Find the most recent entry across all dates
@@ -111,14 +111,14 @@ def main():
             break
 
     if latest_date is None:
-        output("No journal entries yet. Use /journal to start.")
+        output("[journal] no entries yet · /journal to start")
         return
 
     days_ago = (today - latest_date).days
     nudge_threshold = config["nudge_after_days"]
 
     if days_ago >= nudge_threshold:
-        output(f"Last journal entry: {days_ago} days ago ({latest_date.isoformat()}). Consider /journal to capture recent work.")
+        output(f"[journal] last entry {days_ago}d ago ({latest_date.isoformat()}) · /journal to capture recent work")
 
 
 if __name__ == "__main__":
