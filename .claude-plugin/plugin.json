@@ -11,7 +11,7 @@
   "commands": ["./commands/"],
   "agents": ["./agents/scribe.md"],
   "hooks": {
-    "SessionStart": [{"hooks": [{"type": "command", "command": "uv run ${CLAUDE_PLUGIN_ROOT}/hooks/session-nudge.py", "timeout": 5}]}],
-    "Stop": [{"hooks": [{"type": "command", "command": "uv run ${CLAUDE_PLUGIN_ROOT}/hooks/session-journal-offer.py", "timeout": 5}]}]
+    "SessionStart": [{"hooks": [{"type": "command", "command": "uv run ${CLAUDE_PLUGIN_ROOT}/hooks/session-nudge.py"}]}],
+    "Stop": [{"hooks": [{"type": "command", "command": "uv run ${CLAUDE_PLUGIN_ROOT}/hooks/session-journal-offer.py"}]}]
   }
 }
