@@ -2,16 +2,24 @@
   "hooks": {
     "SessionStart": [
       {
-        "type": "command",
-        "command": "uv run $CLAUDE_PLUGIN_ROOT/hooks/session-nudge.py",
-        "timeout": 5000
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run ${CLAUDE_PLUGIN_ROOT}/hooks/session-nudge.py",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "Stop": [
       {
-        "type": "command",
-        "command": "uv run $CLAUDE_PLUGIN_ROOT/hooks/session-journal-offer.py",
-        "timeout": 5000
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run ${CLAUDE_PLUGIN_ROOT}/hooks/session-journal-offer.py",
+            "timeout": 5
+          }
+        ]
       }
     ]
   }
