@@ -5,11 +5,12 @@
 # ///
 """
 Session-start hook: check when the last journal entry was written.
-If more than nudge_after_days, output a gentle reminder.
-If today has entries, show count and latest title.
+Outputs JSON with systemMessage (visible banner) and additionalContext (Claude sees).
 """
 
-from datetime import date, datetime
+import json
+import sys
+from datetime import date
 from pathlib import Path
 
 import yaml
@@ -40,7 +41,24 @@ def parse_frontmatter(path: Path) -> dict:
     return yaml.safe_load(content[3:end]) or {}
 
 
+def output(msg: str):
+    """Output as JSON with both systemMessage and additionalContext."""
+    print(json.dumps({
+        "systemMessage": msg,
+        "hookSpecificOutput": {
+            "hookEventName": "SessionStart",
+            "additionalContext": msg,
+        },
+    }))
+
+
 def main():
+    # Consume stdin (Claude Code may pipe hook input)
+    try:
+        json.loads(sys.stdin.read() or "{}")
+    except (json.JSONDecodeError, ValueError):
+        pass
+
     config = load_config()
     machine = config["default_machine"]
     machine_dir = JOURNAL_ROOT / machine
@@ -65,7 +83,7 @@ def main():
         fm = parse_frontmatter(latest)
         title = fm.get("title", latest.stem)
         time_part = latest.stem[:5].replace("-", ":")
-        print(f"Today's journal: {len(today_entries)} entries. Latest: \"{title}\" ({time_part}).")
+        output(f"Today's journal: {len(today_entries)} entries. Latest: \"{title}\" ({time_part}).")
         return
 
     # Find the most recent entry across all dates
@@ -93,15 +111,18 @@ def main():
             break
 
     if latest_date is None:
-        print("No journal entries yet. Use /journal to start.")
+        output("No journal entries yet. Use /journal to start.")
         return
 
     days_ago = (today - latest_date).days
     nudge_threshold = config["nudge_after_days"]
 
     if days_ago >= nudge_threshold:
-        print(f"Last journal entry: {days_ago} days ago ({latest_date.isoformat()}). Consider /journal to capture recent work.")
+        output(f"Last journal entry: {days_ago} days ago ({latest_date.isoformat()}). Consider /journal to capture recent work.")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        pass

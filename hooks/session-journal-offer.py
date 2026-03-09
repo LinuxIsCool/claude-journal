@@ -5,11 +5,10 @@
 # ///
 """
 Stop hook: suggest journaling after significant sessions.
-Outputs a suggestion if the session likely involved meaningful work.
+Outputs JSON with systemMessage (visible) and additionalContext (Claude sees).
 """
 
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -28,24 +27,31 @@ def load_config() -> dict:
 
 
 def main():
-    # Read hook input from stdin if available
+    # Read hook input from stdin
     hook_input = {}
-    if not sys.stdin.isatty():
-        try:
-            hook_input = json.load(sys.stdin)
-        except (json.JSONDecodeError, ValueError):
-            pass
+    try:
+        hook_input = json.loads(sys.stdin.read() or "{}")
+    except (json.JSONDecodeError, ValueError):
+        pass
 
-    # Simple heuristic: if the stop reason suggests real work was done
-    stop_reason = hook_input.get("stop_reason", "")
     transcript_turns = hook_input.get("transcript_turns", 0)
 
-    # If very few turns, probably not worth journaling about
+    # If very few turns, not worth journaling about
     if transcript_turns < 5:
         return
 
-    print("This session involved significant work. Consider /journal to capture what happened.")
+    msg = "This session involved significant work. Consider /journal to capture what happened."
+    print(json.dumps({
+        "systemMessage": msg,
+        "hookSpecificOutput": {
+            "hookEventName": "Stop",
+            "additionalContext": msg,
+        },
+    }))
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        pass
