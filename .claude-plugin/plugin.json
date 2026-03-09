@@ -1,0 +1,14 @@
+{
+  "name": "claude-journal",
+  "version": "0.1.0",
+  "description": "Atomic journaling with synthesis — capture thoughts, reflect on patterns, plan intentions",
+  "author": {
+    "name": "Shawn Whitney Anderson"
+  },
+  "license": "MIT",
+  "keywords": ["journal", "reflection", "planning", "knowledge", "atomic-notes", "zettelkasten"],
+  "skills": ["./skills/"],
+  "commands": ["./commands/"],
+  "agents": ["./agents/scribe.md"],
+  "hooks": "./hooks/hooks.json"
+}
