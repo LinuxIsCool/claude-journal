@@ -14,7 +14,9 @@ Create atomic journal entries — one idea, decision, or event per entry.
 
 ### 1. Determine Entry Details
 
-From the user's input or current context, extract:
+**Primary source: the conversation context.** The user typically asks to journal about work that just happened in the current session. Use the full conversation history — not just the argument text — to construct a detailed, accurate entry. The argument text is a hint about what to focus on, not the content itself.
+
+From the conversation context and user's input, extract:
 - **Title**: Clear, descriptive (used in filename slug)
 - **Description**: One-line summary
 - **Summary**: 2-3 sentences capturing the essence
