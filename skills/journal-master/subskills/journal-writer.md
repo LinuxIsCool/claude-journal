@@ -14,10 +14,19 @@ Create atomic journal entries — one idea, decision, or event per entry.
 
 ### 1. Determine Entry Details
 
+**Session ID**: Every journal entry should include the `session_id` of the session that created it. This closes the provenance chain between sessions and journal entries.
+- **How to obtain**: Read `~/.claude/projects/-home-shawn/.session_id` if it exists, OR check the `CLAUDE_SESSION_ID` environment variable, OR extract from the most recent session JSONL filename in `~/.claude/local/logging/-home-shawn/sessions/`
+- **If unavailable**: Set to `null` — never block entry creation on missing session_id
+
 **Primary source: the conversation context.** The user typically asks to journal about work that just happened in the current session. Use the full conversation history — not just the argument text — to construct a detailed, accurate entry. The argument text is a hint about what to focus on, not the content itself.
 
 From the conversation context and user's input, extract:
-- **Title**: Clear, descriptive (used in filename slug)
+- **Title**: Clear, descriptive (used in filename slug). **Always use em dash (—) as the separator** between scope/topic and subtitle. Never use colons, hyphens, or other separators in titles. Examples:
+  - ✅ `"claude-dock Phase 7 — Activation v0.8.0"`
+  - ✅ `"Venture Financial & Legal Standing — Setting the Foundation"`
+  - ✅ `"graphiti_skills_repo.py — Code Review and Cleanup"`
+  - ❌ `"claude-dock Phase 7: Activation"` (colon)
+  - ❌ `"Code Review - Cleanup"` (hyphen as separator)
 - **Description**: One-line summary
 - **Summary**: 2-3 sentences capturing the essence
 - **Tags**: Relevant topic tags (lowercase, hyphenated)
@@ -61,6 +70,7 @@ title: "{title}"
 created: {ISO-8601-with-timezone}
 machine: {machine}
 author: {author}
+session_id: "{session_id from CLAUDE_SESSION_ID env var or hook context, if available}"
 description: "{description}"
 summary: "{summary}"
 tags:
@@ -91,6 +101,10 @@ After writing the entry:
 1. Confirm creation with path and title
 2. If URLs were found in content, mention they were captured in frontmatter
 3. If ventures were linked, mention the connection
+4. Write the pipeline heartbeat (so the health monitor knows journaling is active):
+   ```bash
+   date -u +%Y-%m-%dT%H:%M:%S+00:00 > ~/.claude/local/health/journal-heartbeat
+   ```
 
 ## Content Guidelines
 
