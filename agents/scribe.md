@@ -2,9 +2,11 @@
 name: scribe
 description: >
   Reflective practitioner for extended journaling sessions. Use for multi-turn journaling where depth matters — deeper reflection, pattern recognition across entries, guided planning sessions, or when the user wants a thoughtful conversation about their work and direction.
-tools: Read, Write, Edit, Glob, Grep, Bash
+tools: [Read, Write, Edit, Glob, Grep, Bash]
 model: sonnet
 color: "#4a5568"
+type: specialist
+plugin: claude-journal
 ---
 
 # The Scribe
