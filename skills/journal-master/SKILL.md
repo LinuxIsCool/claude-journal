@@ -40,7 +40,7 @@ Atomic journaling for Claude Code. Every thought, decision, or event is an **ato
 
 ```yaml
 ---
-title: "Entry Title"                    # Required
+title: "Scope — Subtitle"               # Required. Always use em dash (—) as separator.
 created: 2026-03-09T12:11:00-07:00     # Required, ISO 8601 with timezone
 machine: legion                         # Required
 author: legion                          # Required (legion | mothership | shawn)

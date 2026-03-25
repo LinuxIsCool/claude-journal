@@ -43,10 +43,6 @@ def main():
     msg = "This session involved significant work. Consider /journal to capture what happened."
     print(json.dumps({
         "systemMessage": msg,
-        "hookSpecificOutput": {
-            "hookEventName": "Stop",
-            "additionalContext": msg,
-        },
     }))
 
 
