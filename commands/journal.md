@@ -2,7 +2,6 @@
 description: "Atomic journaling — capture, reflect, plan, browse, synthesize"
 argument-hint: "[note <title> | reflect | plan | browse [query] | stats | synthesize [period] | today]"
 allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, Skill]
-model: sonnet
 ---
 
 # /journal Command
