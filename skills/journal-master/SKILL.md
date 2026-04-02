@@ -21,6 +21,10 @@ Atomic journaling for Claude Code. Every thought, decision, or event is an **ato
 
 **Venture-linked**: Entries can reference active ventures from claude-ventures, creating bidirectional context.
 
+**Canonical root contract**: The canonical operational root is `~/.claude/local/journal/`. The machine/date tree is the journal plugin's default internal organization beneath that root.
+
+**Contract layering**: The machine-wide fact that journal data lives under `~/.claude/local/journal/` should also be documented in runtime-loaded doctrine. This master skill owns the journaling domain contract and routing behavior. Subskills should specialize behavior, not redefine the storage model.
+
 ## Directory Structure
 
 ```
@@ -35,6 +39,8 @@ Atomic journaling for Claude Code. Every thought, decision, or event is an **ato
 │               ├── YYYY-MM-DD.md  # Daily summary
 │               └── HH-MM-slug.md  # Atomic entry
 ```
+
+This tree is the current default implementation under the journal root, not a separate top-level storage contract.
 
 ## Entry Frontmatter Schema
 
@@ -88,6 +94,12 @@ When invoked without specific context:
 2. If no entries today → offer to create one
 3. If the user's message implies a specific subskill → route there
 4. If unclear → ask what they'd like to do
+
+This is progressive disclosure in practice:
+
+- the master skill defines the domain and routing
+- the subskill only loads when its narrower workflow is needed
+- shared path/schema rules stay here at the master-skill layer unless they are truly machine-global
 
 ## Config
 

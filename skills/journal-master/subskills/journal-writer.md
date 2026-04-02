@@ -62,6 +62,13 @@ Where:
 - `YYYY/MM/DD` is today's date
 - Create directories if they don't exist
 
+This path is not optional or approximate.
+
+- The canonical journal plugin root is `~/.claude/local/journal/`.
+- This machine/date layout is the current default organization within that root.
+- Never create parallel journal hierarchies outside the journal plugin root for the same entry.
+- Because `~/.claude/local/` may be symlinked into another repo, writing to the canonical `~/.claude/local/journal/...` root is already sufficient; do not duplicate the same entry elsewhere unless a separate export is explicitly required.
+
 ### 4. Write the Entry
 
 ```markdown
