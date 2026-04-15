@@ -46,3 +46,53 @@ The deeper pattern is:
 - subskills implement specialized workflows like writing, browsing, reflection, planning, and synthesis
 
 Do not redefine the journal root differently in subskills or commands.
+
+## Data Schema
+
+No SQLite. File-based only.
+
+### File Layout
+
+```
+~/.claude/local/journal/
+└── {machine}/                    # e.g. "legion"
+    └── YYYY/
+        └── MM/
+            └── DD/
+                ├── HH-MM-slug.md           # atomic entry
+                ├── YYYY-MM-DD.md           # daily summary
+            └── YYYY-MM.md                  # monthly summary
+        └── YYYY.md                         # yearly summary
+```
+
+### Frontmatter Contract
+
+```yaml
+---
+title: "2026-04-13 — Nightly Integration"       # required
+created: 2026-04-13T03:01:19-07:00               # required, ISO 8601
+machine: legion                                   # required
+author: legion                                    # required
+description: "..."                                # optional
+summary: "..."                                    # optional
+tags: [rhythm, nightly-integration]               # required (may be empty)
+session_type: brief                               # optional
+related: []                                       # optional, wikilinks
+ventures: []                                      # optional, venture slugs
+urls: []                                          # optional
+references_date: null                             # optional, past event date
+type: atomic                                      # optional (atomic|daily|monthly|yearly)
+parent_daily: "2026-04-13"                        # optional, synthesis linking
+parent_monthly: "2026-04"                         # optional, synthesis linking
+---
+```
+
+### Canonical Count
+
+The SessionStart hook (`session-recent-entries.py`) finds entries via:
+
+```python
+JOURNAL_ROOT.rglob("*.md")  # all .md under ~/.claude/local/journal/
+```
+
+It filters hidden files (`.name.startswith(".")`) and sorts by mtime descending. There is no explicit exclusion of summary files from the count.
