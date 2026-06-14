@@ -1,0 +1,615 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>claude-journal — Legion</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>📓</text></svg>" />
+<link rel="stylesheet" href="static/legion-ui.css" />
+<style>
+  :root {
+    --base:#1e1e2e; --mantle:#181825; --crust:#11111b; --surf:#313244;
+    --surf2:#45475a; --overlay:#6c7086; --text:#cdd6f4; --sub:#bac2de;
+    --muted:#7f849c; --mauve:#cba6f7; --blue:#89b4fa; --green:#a6e3a1;
+    --peach:#fab387; --teal:#94e2d5; --pink:#f5c2e7; --red:#f38ba8; --yellow:#f9e2af;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--base); color:var(--text);
+         font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace; font-size:0.82rem; }
+  /* author palette */
+  .a-matt   { --ac:var(--blue); }   .a-legion { --ac:var(--peach); }
+  .a-darren { --ac:var(--teal); }   .a-bondometer { --ac:var(--green); }
+  .a-transcripts { --ac:var(--pink); } .a-shawn { --ac:var(--mauve); }
+  .a-codex  { --ac:var(--yellow); }  .a-unknown { --ac:var(--overlay); }
+  header { display:flex; align-items:center; gap:12px; padding:10px 14px;
+           border-bottom:1px solid var(--surf); position:sticky; top:0; background:var(--base); z-index:10; }
+  h1 { font-size:0.78rem; color:var(--mauve); margin:0; white-space:nowrap; letter-spacing:0.04em; }
+  .input { background:var(--mantle); border:1px solid var(--surf2); border-radius:5px;
+           padding:5px 9px; color:var(--text); font:inherit; font-size:0.76rem; outline:none; }
+  .input:focus { border-color:var(--blue); }
+  #search { flex:1; max-width:30rem; }
+  .health { font-size:0.6rem; color:var(--muted); margin-left:auto; white-space:nowrap; }
+  .layout { display:flex; min-height:calc(100vh - 49px); }
+  aside { width:13rem; padding:12px; border-right:1px solid var(--surf); shrink:0; overflow:auto;
+          max-height:calc(100vh - 49px); position:sticky; top:49px; }
+  main { flex:1; padding:14px 18px; min-width:0; }
+  .sec { font-size:0.56rem; letter-spacing:0.12em; text-transform:uppercase;
+         color:var(--muted); margin:14px 0 5px; }
+  .navlink { display:flex; gap:7px; align-items:center; padding:5px 9px; border-radius:5px;
+             cursor:pointer; color:var(--sub); font-size:0.76rem; }
+  .navlink:hover { background:var(--mantle); color:var(--blue); }
+  .navlink.active { background:var(--mantle); color:var(--mauve); border-left:2px solid var(--mauve); }
+  .navlink .ct { margin-left:auto; font-size:0.6rem; color:var(--muted); }
+  .chip { display:inline-block; padding:2px 9px; border:1px solid var(--surf2); border-radius:11px;
+          cursor:pointer; font-size:0.66rem; color:var(--sub); margin:2px 2px 0 0; white-space:nowrap; }
+  .chip:hover { border-color:var(--blue); color:var(--blue); }
+  .chip.active { background:var(--mantle); border-color:var(--mauve); color:var(--mauve); }
+  /* feed */
+  .entry { border:1px solid var(--surf); border-left:3px solid var(--ac,var(--overlay));
+           border-radius:8px; background:var(--mantle); padding:11px 14px; margin-bottom:10px;
+           cursor:pointer; transition:transform .12s, background .15s; }
+  .entry:hover { transform:translateX(3px); background:#222234; }
+  .entry .meta { display:flex; gap:8px; align-items:center; font-size:0.62rem; color:var(--muted); margin-bottom:4px; }
+  .entry .au { color:var(--ac); font-weight:600; }
+  .entry .ti { font-size:0.86rem; color:var(--text); margin:1px 0 4px; line-height:1.3; }
+  .entry .ex { font-size:0.72rem; color:var(--sub); line-height:1.45;
+               display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .ex.snip { color:var(--sub); }
+  .ex.snip mark, .prose mark { background:var(--yellow); color:var(--crust); border-radius:2px; padding:0 2px; }
+  .tag { font-size:0.58rem; color:var(--muted); }
+  .cls { font-size:0.55rem; padding:0 5px; border:1px solid var(--surf2); border-radius:7px; color:var(--muted); }
+  /* day grid */
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:9px; }
+  .daycard { border:1px solid var(--surf); border-radius:8px; background:var(--mantle); padding:9px; cursor:pointer; }
+  .daycard:hover { border-color:var(--mauve); }
+  .daycard .d { font-size:0.68rem; color:var(--mauve); margin-bottom:4px; }
+  .daycard .n { font-size:1.3rem; color:var(--text); }
+  .daycard .s { font-size:0.58rem; color:var(--muted); }
+  /* detail */
+  .reader { max-width:720px; margin:0 auto; }
+  .reader .rtitle { font-size:1.35rem; color:var(--text); line-height:1.25; margin:2px 0 6px; }
+  .reader .rmeta { font-size:0.66rem; color:var(--muted); margin-bottom:16px; }
+  .reader .rmeta .au { color:var(--ac); font-weight:600; }
+  .prose { line-height:1.7; font-size:0.86rem; color:var(--text); white-space:pre-wrap; word-wrap:break-word; }
+  .prose.render { white-space:normal; }
+  .prose.render h1,.prose.render h2,.prose.render h3 { color:var(--mauve); line-height:1.3; margin:1.1em 0 .4em; }
+  .prose.render h1{font-size:1.2rem;} .prose.render h2{font-size:1.05rem;} .prose.render h3{font-size:0.94rem;}
+  .prose.render code { background:var(--crust); padding:1px 5px; border-radius:4px; font-size:0.8em; }
+  .prose.render pre { background:var(--crust); padding:10px 12px; border-radius:6px; overflow:auto; }
+  .prose.render a { color:var(--blue); }
+  .prose.render ul,.prose.render ol { padding-left:1.4em; }
+  .prose.render blockquote { border-left:2px solid var(--surf2); margin:.6em 0; padding-left:.9em; color:var(--sub); }
+  .navrow { display:flex; justify-content:space-between; gap:10px; margin:22px 0 8px; }
+  .navbtn { flex:1; border:1px solid var(--surf); border-radius:7px; background:var(--mantle);
+            padding:8px 11px; cursor:pointer; color:var(--sub); font-size:0.66rem; overflow:hidden; }
+  .navbtn:hover { border-color:var(--mauve); color:var(--text); }
+  .navbtn.empty { visibility:hidden; }
+  .btn { background:var(--mantle); border:1px solid var(--surf2); border-radius:5px; color:var(--sub);
+         padding:4px 10px; cursor:pointer; font:inherit; font-size:0.68rem; }
+  .btn:hover { border-color:var(--blue); color:var(--blue); }
+  .btn.on { border-color:var(--mauve); color:var(--mauve); }
+  .toprow { display:flex; gap:8px; align-items:center; margin-bottom:14px; }
+  .reading body, body.reading aside, body.reading header .health { }
+  body.reading aside { display:none; }
+  .empty-msg { color:var(--muted); padding:30px; text-align:center; }
+  /* calendar heatmap */
+  .calwrap { overflow-x:auto; padding:6px 0; }
+  .calmonths { display:grid; grid-auto-flow:column; grid-auto-columns:13px; gap:3px; margin-bottom:4px; }
+  .calm { font-size:0.55rem; color:var(--muted); text-align:left; }
+  .calgrid { display:grid; grid-template-rows:repeat(7,13px); grid-auto-flow:column; grid-auto-columns:13px; gap:3px; }
+  .calc { width:13px; height:13px; border-radius:3px; background:var(--surf); cursor:pointer; }
+  .calc.l0 { background:#23233444; cursor:default; } .calc.l1 { background:#2d4a33; }
+  .calc.l2 { background:#3f7a4a; } .calc.l3 { background:#5fb46a; } .calc.l4 { background:var(--green); }
+  .calc:hover { outline:1px solid var(--mauve); }
+  .callegend { display:flex; align-items:center; gap:4px; font-size:0.58rem; color:var(--muted); margin-top:8px; }
+  .callegend .calc { cursor:default; }
+  /* insight cards + bars */
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; margin-bottom:14px; }
+  .card { border:1px solid var(--surf); border-radius:8px; background:var(--mantle); padding:12px 14px; }
+  .card .ck { font-size:1.7rem; color:var(--mauve); } .card .cl { font-size:0.62rem; color:var(--muted); }
+  .panel { border:1px solid var(--surf); border-radius:8px; background:var(--mantle); padding:12px 14px; margin-bottom:12px; }
+  .panel h3 { font-size:0.72rem; color:var(--sub); margin:0 0 10px; font-weight:600; }
+  .barrow { display:grid; grid-template-columns:repeat(var(--n),1fr); gap:3px; align-items:end; height:120px; }
+  .barcol { display:flex; flex-direction:column; justify-content:flex-end; align-items:center; height:100%; }
+  .bar { width:70%; min-height:1px; background:linear-gradient(var(--blue),var(--mauve)); border-radius:2px 2px 0 0; }
+  .barlbl { font-size:0.5rem; color:var(--muted); margin-top:3px; }
+  .streamlg, .slg { font-size:0.58rem; color:var(--sub); }
+  .streamlg { margin-top:6px; display:flex; flex-wrap:wrap; gap:9px; }
+  .slg i { display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:3px; vertical-align:middle; }
+  .cloud { line-height:1.9; } .cloudt { color:var(--sub); cursor:pointer; margin-right:4px; }
+  .cloudt:hover { color:var(--mauve); }
+  .ydhead { font-size:0.8rem; color:var(--peach); margin:16px 0 7px; border-bottom:1px solid var(--surf); padding-bottom:3px; }
+  /* composer */
+  .composer { max-width:760px; margin:0 auto; }
+  .frow { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:6px 0; }
+  .frow label { font-size:0.62rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; }
+  textarea.input { font-family:inherit; }
+  .cx-prompt { font-size:0.72rem; color:var(--sub); margin-top:9px; font-style:italic; }
+  .synbar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+  #toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:50;
+           padding:9px 16px; border-radius:7px; font-size:0.76rem; opacity:0; transition:opacity .3s;
+           box-shadow:0 4px 14px #00000060; max-width:80vw; }
+  #toast.ok { background:var(--green); color:var(--crust); }
+  #toast.err { background:var(--red); color:var(--crust); }
+  /* related */
+  #related { margin-top:22px; }
+  .relrow { display:flex; gap:8px; align-items:baseline; padding:5px 8px; border:1px solid var(--surf);
+            border-radius:6px; margin-bottom:5px; cursor:pointer; }
+  .relrow:hover { border-color:var(--mauve); }
+  .relrow .au { font-size:0.62rem; font-weight:600; white-space:nowrap; }
+  .relrow .rt { font-size:0.72rem; color:var(--text); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .relrow .rd { font-size:0.58rem; color:var(--muted); white-space:nowrap; }
+  .spin { display:inline-block; width:13px; height:13px; border:2px solid var(--surf2);
+          border-top-color:var(--mauve); border-radius:50%; animation:sp .7s linear infinite; }
+  @keyframes sp { to { transform:rotate(360deg); } }
+</style>
+</head>
+<body class="a-unknown">
+  <header>
+    <h1>📓 claude-journal</h1>
+    <input id="search" class="input" placeholder="search title · full text · tags…" />
+    <button id="writeBtn" class="btn on" title="New journal entry">✍ write</button>
+    <button id="modeBtn" class="btn" title="Toggle text / hybrid-semantic search">⌕ text</button>
+    <button id="readingBtn" class="btn" title="Reading mode (hide chrome)">▭ reading</button>
+    <span id="health" class="health"></span>
+  </header>
+
+  <div class="layout">
+    <aside>
+      <div class="sec">View</div>
+      <div id="nav"></div>
+      <div class="sec">Author</div>
+      <div id="authors"></div>
+      <div class="sec">Source</div>
+      <div id="classes"></div>
+      <div class="sec">Top tags</div>
+      <div id="tags"></div>
+    </aside>
+    <main><div id="content"><span class="spin"></span></div></main>
+  </div>
+
+  <script src="static/embedded-bar.js"></script>
+  <script>
+  const LS = "journal-web:state:v1";
+  const esc = s => String(s==null?"":s).replace(/[&<>"']/g,
+    c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+  const state = { view:"feed", q:"", author:"all", source_class:"journal", tag:"", reading:false, sel:null, smode:"text" };
+  // escape snippet text but preserve the FTS <mark> highlight tags
+  const snipHtml = s => esc(s).replace(/&lt;mark&gt;/g,'<mark>').replace(/&lt;\/mark&gt;/g,'</mark>');
+  function save(){ localStorage.setItem(LS, JSON.stringify(state)); }
+  function load(){ try{ Object.assign(state, JSON.parse(localStorage.getItem(LS)||"{}")); }catch(e){} }
+
+  async function api(path){ const r=await fetch(path); if(!r.ok) throw new Error(path+" "+r.status); return r.json(); }
+  async function mutate(tool, args){
+    const r=await fetch("/api/mutate",{ method:"POST",
+      headers:{ "Content-Type":"application/json", "X-Persona-Slug": (args.author||"shawn") },
+      body:JSON.stringify({ tool, args }) });
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(d.message || d.code || ("write failed ("+r.status+")"));
+    return d.result;
+  }
+  let toastT;
+  function toast(msg, isErr){
+    let el=document.getElementById("toast");
+    if(!el){ el=document.createElement("div"); el.id="toast"; document.body.appendChild(el); }
+    el.textContent=msg; el.className = isErr?"err":"ok"; el.style.opacity="1";
+    clearTimeout(toastT); toastT=setTimeout(()=>{ el.style.opacity="0"; }, 3200);
+  }
+  const TEMPLATES = {
+    blank:   "",
+    checkpoint: "**When:** \n\n**What shipped:** \n\n**Next:** \n",
+    decision:   "**Decision:** \n\n**Context:** \n\n**Rationale:** \n\n**Rollback:** \n",
+    win:        "**Win:** \n\n**Why it matters:** \n",
+    idea:       "**Idea:** \n\n**Spark:** \n\n**Next step:** \n",
+  };
+  const PROMPTS = [
+    "What's the one thing that mattered most today?",
+    "What did you learn that you didn't know this morning?",
+    "What are you avoiding, and why?",
+    "Who deserves a thank-you you haven't sent?",
+    "What would make tomorrow a win?",
+    "What pattern keeps repeating in your work?",
+    "What did you decide today, and what was the alternative?",
+  ];
+  function qs(extra){
+    const p=new URLSearchParams();
+    if(state.q){ p.set("q",state.q); if(state.smode==="hybrid") p.set("mode","hybrid"); }
+    if(state.author && state.author!=="all") p.set("author",state.author);
+    if(state.tag) p.set("tag",state.tag);
+    for(const[k,v] of Object.entries(extra||{})) p.set(k,v);
+    return p.toString();
+  }
+  const fmtTs = ts => { if(!ts) return ""; const d=new Date(ts);
+    if(isNaN(d)) return ts.slice(0,16).replace("T"," ");
+    return d.toLocaleString(undefined,{month:"short",day:"numeric",year:"numeric",hour:"2-digit",minute:"2-digit"}); };
+  const AUTHOR_CLASS = a => "a-"+(a||"unknown").replace(/[^a-z]/g,"");
+
+  const PAGES = [
+    {id:"feed", icon:"≡", label:"Feed"},
+    {id:"days", icon:"▦", label:"By day"},
+    {id:"calendar", icon:"▣", label:"Calendar"},
+    {id:"insights", icon:"◔", label:"Insights"},
+    {id:"onthisday", icon:"↻", label:"On this day"},
+    {id:"synthesis", icon:"✦", label:"Synthesis"},
+  ];
+  const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const WD=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+
+  // ── minimal, safe markdown renderer (no innerHTML of raw md) ──────────
+  function renderMd(md){
+    const lines = String(md).split("\n");
+    let html="", inCode=false, inList=false;
+    const closeList=()=>{ if(inList){ html+="</ul>"; inList=false; } };
+    const inline = t => esc(t)
+      .replace(/`([^`]+)`/g,"<code>$1</code>")
+      .replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>")
+      .replace(/(^|[^*])\*([^*]+)\*/g,"$1<em>$2</em>")
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
+    for(let raw of lines){
+      if(raw.trim().startsWith("```")){ if(inCode){html+="</pre>";inCode=false;} else {closeList();html+="<pre>";inCode=true;} continue; }
+      if(inCode){ html+=esc(raw)+"\n"; continue; }
+      let m;
+      if((m=raw.match(/^(#{1,3})\s+(.*)$/))){ closeList(); const n=m[1].length; html+=`<h${n}>${inline(m[2])}</h${n}>`; continue; }
+      if((m=raw.match(/^\s*[-*]\s+(.*)$/))){ if(!inList){html+="<ul>";inList=true;} html+=`<li>${inline(m[1])}</li>`; continue; }
+      if(raw.match(/^\s*>\s?/)){ closeList(); html+=`<blockquote>${inline(raw.replace(/^\s*>\s?/,""))}</blockquote>`; continue; }
+      if(raw.trim()===""){ closeList(); html+="<br>"; continue; }
+      closeList(); html+=`<p>${inline(raw)}</p>`;
+    }
+    if(inCode) html+="</pre>"; closeList();
+    return html;
+  }
+
+  function entryHtml(e){
+    const tags = (e.tags||[]).slice(0,5).map(t=>`<span class="tag">#${esc(t)}</span>`).join(" ");
+    const cls = e.source_class!=="journal" ? `<span class="cls">${esc(e.source_class)}</span>` : "";
+    const body = e.snippet ? `<div class="ex snip">${snipHtml(e.snippet)}</div>`
+                           : `<div class="ex">${esc(e.excerpt)}</div>`;
+    return `<div class="entry ${AUTHOR_CLASS(e.author)}" data-act="entry" data-arg="${esc(e.id)}">
+      <div class="meta"><span class="au">${esc(e.author)}</span>·<span>${esc(fmtTs(e.ts))}</span>${cls}</div>
+      <div class="ti">${esc(e.title)}</div>
+      ${body}
+      <div style="margin-top:5px">${tags}</div></div>`;
+  }
+
+  async function renderFeed(){
+    const c=document.getElementById("content"); c.innerHTML='<span class="spin"></span>';
+    const src = state.source_class==="all" ? {source_class:"all"} : {source_class:state.source_class};
+    const items = await api("/api/feed?"+qs({...src, limit:80}));
+    if(!items.length){ c.innerHTML='<div class="empty-msg">no entries match.</div>'; return; }
+    c.innerHTML = items.map(entryHtml).join("");
+  }
+
+  async function renderDays(){
+    const c=document.getElementById("content"); c.innerHTML='<span class="spin"></span>';
+    const s = await api("/api/stats");
+    const days = Object.entries(s.by_day||{}).filter(([d])=>d).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,120);
+    if(!days.length){ c.innerHTML='<div class="empty-msg">no dated entries.</div>'; return; }
+    c.innerHTML = `<div class="grid">`+days.map(([d,n])=>{
+      const [y,mo,dd]=d.split("-");
+      return `<div class="daycard" data-act="day" data-arg="${esc(d)}"><div class="d">${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+mo-1]} ${+dd}</div>
+        <div class="n">${n}</div><div class="s">${y} · ${n===1?"entry":"entries"}</div></div>`;
+    }).join("")+`</div>`;
+  }
+
+  async function openDay(day){
+    state.view="feed"; renderNav();
+    const c=document.getElementById("content"); c.innerHTML='<span class="spin"></span>';
+    const items = await api("/api/list?"+qs({source_class:"all", from:day, to:day+"T23:59:59", limit:200}));
+    c.innerHTML = `<div class="toprow"><button class="btn" data-act="go" data-arg="days">← all days</button>
+      <strong>${esc(day)}</strong><span class="health">${items.length} entries</span></div>`
+      + (items.length? items.map(entryHtml).join("") : '<div class="empty-msg">none.</div>');
+  }
+
+  // ── Calendar heatmap (GitHub-style, weekday rows × week columns) ──────
+  function dISO(d){ return d.toISOString().slice(0,10); }
+  function renderCalendar(){
+    const c=document.getElementById("content"); c.innerHTML='<span class="spin"></span>';
+    api("/api/stats").then(s=>{
+      const byDay=s.by_day||{}; const keys=Object.keys(byDay).filter(Boolean).sort();
+      if(!keys.length){ c.innerHTML='<div class="empty-msg">no dated entries.</div>'; return; }
+      const max=Math.max(...Object.values(byDay));
+      const lvl=n=> n? (n>=max*0.66?4 : n>=max*0.33?3 : n>=max*0.12?2 : 1) : 0;
+      const start=new Date(keys[0]+"T00:00:00"); const end=new Date(keys[keys.length-1]+"T00:00:00");
+      // back up to Monday
+      const s0=new Date(start); const dow=(s0.getDay()+6)%7; s0.setDate(s0.getDate()-dow);
+      let cells="", monthRow="", lastMonth="", col=0, curMonthSpan=0;
+      for(let d=new Date(s0); d<=end; d.setDate(d.getDate()+1)){
+        const iso=dISO(d); const n=byDay[iso]||0; const wd=(d.getDay()+6)%7;
+        if(wd===0){ // new column starts
+          const mk=iso.slice(0,7);
+          if(mk!==lastMonth){ if(curMonthSpan) monthRow+=`<span class="calm" style="grid-column:span ${curMonthSpan}">${MON[+mk.slice(5,7)-1]}</span>`; lastMonth=mk; curMonthSpan=0; }
+          curMonthSpan++;
+        }
+        cells+=`<div class="calc l${lvl(n)}" data-act="day" data-arg="${iso}" title="${iso}: ${n}"></div>`;
+      }
+      if(curMonthSpan) monthRow+=`<span class="calm" style="grid-column:span ${curMonthSpan}">·</span>`;
+      c.innerHTML=`<div class="toprow"><strong>Calendar heatmap</strong>
+        <span class="health">${keys.length} active days · ${s.total} entries · peak ${max}/day</span></div>
+        <div class="calwrap"><div class="calmonths">${monthRow}</div>
+        <div class="calgrid">${cells}</div>
+        <div class="callegend">less ${[0,1,2,3,4].map(l=>`<span class="calc l${l}"></span>`).join("")} more</div></div>`;
+    });
+  }
+
+  // ── Insights: hour-of-day · weekday · streak · tag cloud · tag-trends ──
+  function streaks(byDay){
+    const days=Object.keys(byDay).filter(Boolean).sort(); if(!days.length) return {cur:0,max:0};
+    let mx=1,cur=1; for(let i=1;i<days.length;i++){
+      const prev=new Date(days[i-1]), d=new Date(days[i]);
+      if((d-prev)===86400000){ cur++; mx=Math.max(mx,cur); } else cur=1; }
+    // current streak counts back from latest day only if it reaches today-ish
+    const today=new Date(); const last=new Date(days[days.length-1]);
+    let curStreak=0; if((today-last)<=2*86400000){ curStreak=1;
+      for(let i=days.length-1;i>0;i--){ const a=new Date(days[i-1]),b=new Date(days[i]); if((b-a)===86400000) curStreak++; else break; } }
+    return {cur:curStreak, max:mx};
+  }
+  function bars(vals, labels){
+    const mx=Math.max(1,...vals);
+    return vals.map((v,i)=>`<div class="barcol"><div class="bar" style="height:${Math.round(v/mx*100)}%" title="${labels[i]}: ${v}"></div><div class="barlbl">${labels[i]}</div></div>`).join("");
+  }
+  function streamSvg(tr){
+    const months=tr.months||[], series=tr.series||[]; if(!months.length) return '<div class="empty-msg">no tag history.</div>';
+    const W=Math.max(420, months.length*26), H=180, pad=4;
+    const totals=months.map((_,mi)=>series.reduce((a,s)=>a+(s.counts[mi]||0),0));
+    const gmax=Math.max(1,...totals);
+    const cols=["#89b4fa","#f38ba8","#a6e3a1","#fab387","#cba6f7","#94e2d5","#f9e2af","#f5c2e7"];
+    const x=mi=>pad+mi*((W-2*pad)/Math.max(1,months.length-1));
+    const yScale=v=>(H-2*pad)*(v/gmax);
+    let acc=months.map(()=>0); let paths="";
+    series.forEach((s,si)=>{
+      const top=months.map((_,mi)=>acc[mi]+(s.counts[mi]||0));
+      const up=top.map((v,mi)=>`${x(mi).toFixed(1)},${(H-pad-yScale(v)).toFixed(1)}`);
+      const dn=acc.map((v,mi)=>`${x(mi).toFixed(1)},${(H-pad-yScale(v)).toFixed(1)}`).reverse();
+      paths+=`<path d="M${up.join(" L")} L${dn.join(" L")} Z" fill="${cols[si%cols.length]}" opacity="0.78"><title>${esc(s.tag)}</title></path>`;
+      acc=top;
+    });
+    const legend=series.map((s,si)=>`<span class="slg"><i style="background:${cols[si%cols.length]}"></i>${esc(s.tag)}</span>`).join(" ");
+    return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:180px">${paths}</svg><div class="streamlg">${legend}</div>`;
+  }
+  function cloud(tags){
+    const mx=Math.max(1,...tags.map(t=>t[1])), mn=Math.min(...tags.map(t=>t[1]));
+    return tags.map(([t,n])=>{ const sz=(0.72+ (Math.sqrt(n)-Math.sqrt(mn))/(Math.sqrt(mx)-Math.sqrt(mn)||1)*1.1).toFixed(2);
+      return `<span class="cloudt" data-act="tag" data-arg="${esc(t)}" style="font-size:${sz}rem" title="${n}">${esc(t)}</span>`; }).join(" ");
+  }
+  function renderInsights(){
+    const c=document.getElementById("content"); c.innerHTML='<span class="spin"></span>';
+    api("/api/stats").then(s=>{
+      const st=streaks(s.by_day||{});
+      const hourLbls=Array.from({length:24},(_,i)=>i%6===0?i:"" );
+      c.innerHTML=`
+      <div class="cards">
+        <div class="card"><div class="ck">${st.cur}</div><div class="cl">current streak (days)</div></div>
+        <div class="card"><div class="ck">${st.max}</div><div class="cl">longest streak</div></div>
+        <div class="card"><div class="ck">${s.total}</div><div class="cl">total entries</div></div>
+        <div class="card"><div class="ck">${Object.keys(s.by_day||{}).length}</div><div class="cl">active days</div></div>
+      </div>
+      <div class="panel"><h3>When you write — hour of day</h3><div class="barrow" style="--n:24">${bars(s.by_hour||[],hourLbls)}</div></div>
+      <div class="panel"><h3>Weekday rhythm</h3><div class="barrow" style="--n:7">${bars(s.by_weekday||[],WD)}</div></div>
+      <div class="panel"><h3>Theme river — top tags over time</h3>${streamSvg(s.tag_trends||{})}</div>
+      <div class="panel"><h3>Tag cloud</h3><div class="cloud">${cloud((s.top_tags||[]).slice(0,40))}</div></div>`;
+    });
+  }
+
+  // ── On this day ────────────────────────────────────────────────────────
+  function renderOnThisDay(){
+    const c=document.getElementById("content"); c.innerHTML='<span class="spin"></span>';
+    const now=new Date(); const md=String(now.getMonth()+1).padStart(2,"0")+"-"+String(now.getDate()).padStart(2,"0");
+    api("/api/list?"+qs({md, source_class:"all", limit:300})).then(items=>{
+      const byYear={}; items.forEach(e=>{ (byYear[e.ts.slice(0,4)]=byYear[e.ts.slice(0,4)]||[]).push(e); });
+      const years=Object.keys(byYear).sort().reverse();
+      c.innerHTML=`<div class="toprow"><strong>On this day — ${MON[now.getMonth()]} ${now.getDate()}</strong>
+        <span class="health">${items.length} entries across ${years.length} years</span></div>`
+        + (years.length? years.map(y=>`<div class="ydhead">${y}</div>`+byYear[y].map(entryHtml).join("")).join("")
+                       : '<div class="empty-msg">nothing on this calendar day yet — come back tomorrow.</div>');
+    });
+  }
+
+  // ── Synthesis (display-only LLM reflection) ─────────────────────────────
+  const SYN_KINDS = [
+    {k:"week", label:"This week", icon:"📅"},
+    {k:"month", label:"This month", icon:"🗓"},
+    {k:"patterns", label:"Patterns", icon:"🔁"},
+    {k:"openloops", label:"Open loops", icon:"🔓"},
+  ];
+  function renderSynthesis(){
+    const c=document.getElementById("content");
+    c.innerHTML=`<div class="toprow"><strong>✦ Synthesis</strong>
+      <span class="health">TELUS-generated · display-only · not written to disk</span></div>
+      <div class="synbar">${SYN_KINDS.map(s=>`<button class="btn" data-syn="${s.k}">${s.icon} ${s.label}</button>`).join("")}</div>
+      <div id="synout" class="panel" style="min-height:30vh"><div class="empty-msg">pick a lens above — synthesis runs a local model over your entries (~10–40s).</div></div>`;
+    c.querySelectorAll("[data-syn]").forEach(btn=>btn.onclick=async()=>{
+      const out=document.getElementById("synout");
+      c.querySelectorAll("[data-syn]").forEach(b=>b.classList.remove("on")); btn.classList.add("on");
+      out.innerHTML='<span class="spin"></span> <span class="health">synthesizing…</span>';
+      try{
+        const r=await mutate("synthesize",{kind:btn.dataset.syn});
+        out.innerHTML=`<div class="health" style="margin-bottom:8px">${esc(r.label||btn.dataset.syn)} · ${r.entry_count} entries</div>`
+          +`<div class="prose render">${renderMd(r.markdown||"")}</div>`;
+      }catch(e){ out.innerHTML=`<div class="empty-msg" style="color:var(--red)">${esc(e.message)}</div>`; }
+    });
+  }
+
+  // ── Composer (write surface) ────────────────────────────────────────────
+  function renderCompose(){
+    const c=document.getElementById("content");
+    const prompt=PROMPTS[new Date().getDate() % PROMPTS.length];
+    c.innerHTML = `<div class="composer">
+      <div class="toprow"><strong>✍ New entry</strong>
+        <span class="health">writes to {author}/YYYY/MM/DD/ · source: webui</span></div>
+      <div class="frow">
+        <label>Author</label>
+        <input id="cx-author" class="input" value="${esc(state.composeAuthor||'shawn')}" style="width:9rem" />
+        <label>Template</label>
+        <span id="cx-tpl">${Object.keys(TEMPLATES).map(t=>`<span class="chip" data-tpl="${t}">${t}</span>`).join("")}</span>
+      </div>
+      <input id="cx-title" class="input" placeholder="title…" style="width:100%;margin:8px 0" />
+      <div class="frow"><label>Tags</label>
+        <input id="cx-tags" class="input" placeholder="comma or space separated" style="flex:1" /></div>
+      <textarea id="cx-body" class="input" placeholder="write here… (markdown)"
+        style="width:100%;min-height:42vh;margin-top:8px;resize:vertical;line-height:1.6"></textarea>
+      <div class="cx-prompt">💭 ${esc(prompt)} <span class="chip" id="cx-useprompt">use as title</span></div>
+      <div class="frow" style="margin-top:10px">
+        <button class="btn on" id="cx-save">＋ save entry</button>
+        <button class="btn" id="cx-quick">⚡ quick-capture (append to today)</button>
+        <button class="btn" id="cx-cancel">cancel</button>
+      </div>
+    </div>`;
+    const $=id=>document.getElementById(id);
+    $("cx-tpl").querySelectorAll("[data-tpl]").forEach(el=>el.onclick=()=>{
+      const v=TEMPLATES[el.dataset.tpl]||""; $("cx-body").value=v; $("cx-body").focus();
+    });
+    $("cx-useprompt").onclick=()=>{ $("cx-title").value=prompt; };
+    $("cx-cancel").onclick=()=>go("feed");
+    $("cx-save").onclick=async()=>{
+      const author=$("cx-author").value.trim()||"shawn";
+      state.composeAuthor=author; save();
+      try{
+        const res=await mutate("create_entry",{
+          author, title:$("cx-title").value.trim(),
+          body:$("cx-body").value, tags:$("cx-tags").value });
+        toast("saved → "+res.relpath); state.author=author; state.view="feed"; save();
+        renderNav(); refreshChrome(); renderFeed();
+      }catch(e){ toast(e.message,true); }
+    };
+    $("cx-quick").onclick=async()=>{
+      const author=$("cx-author").value.trim()||"shawn"; state.composeAuthor=author; save();
+      const text=$("cx-body").value.trim();
+      if(!text){ toast("nothing to capture",true); return; }
+      try{ const res=await mutate("append_today",{author,text});
+        toast((res.created?"created":"appended")+" → "+res.relpath); $("cx-body").value=""; }
+      catch(e){ toast(e.message,true); }
+    };
+    $("cx-title").focus();
+  }
+
+  let renderMode = "render"; // render | raw
+  async function openEntry(id){
+    state.sel=id; save();
+    const c=document.getElementById("content"); c.innerHTML='<span class="spin"></span>';
+    const e = await api("/api/detail/"+encodeURIComponent(id));
+    if(e.error){ c.innerHTML='<div class="empty-msg">entry not found.</div>'; return; }
+    const tags=(e.tags||[]).map(t=>`<span class="chip" data-act="tag" data-arg="${esc(t)}">#${esc(t)}</span>`).join(" ");
+    const body = renderMode==="render" ? `<div class="prose render">${renderMd(e.body_md)}</div>`
+                                       : `<div class="prose">${esc(e.body_md)}</div>`;
+    const nb = (rec,dir)=> rec ? `<div class="navbtn" data-act="entry" data-arg="${esc(rec.id)}">${dir} ${esc(rec.title.slice(0,46))}</div>`
+                               : `<div class="navbtn empty"></div>`;
+    document.body.className = AUTHOR_CLASS(e.author) + (state.reading?" reading":"");
+    c.innerHTML = `<div class="reader">
+      <div class="toprow">
+        <button class="btn" data-act="go" data-arg="${esc(state.view)}">← back</button>
+        <button class="btn ${renderMode==='render'?'on':''}" id="rm" data-act="togglemd">⤺ ${renderMode==='render'?'rendered':'raw'}</button>
+        <span class="health">${esc(e.relpath)}</span></div>
+      <div class="rtitle">${esc(e.title)}</div>
+      <div class="rmeta"><span class="au">${esc(e.author)}</span> · ${esc(fmtTs(e.ts))}
+        · ${esc(e.source_class)}${e.has_fm?"":" · <em>unfenced</em>"}</div>
+      ${tags?`<div style="margin-bottom:14px">${tags}</div>`:""}
+      ${body}
+      <div class="navrow">${nb(e.older,"← older")}${nb(e.newer,"newer →")}</div>
+      <div id="related"><div class="sec">Related entries</div><span class="spin"></span></div>
+    </div>`;
+    loadRelated(e);
+  }
+  async function loadRelated(e){
+    const box=document.getElementById("related"); if(!box) return;
+    try{
+      const q=encodeURIComponent((e.title||"").slice(0,80));
+      const items=(await api(`/api/feed?q=${q}&mode=hybrid&source_class=all&limit=7`))
+        .filter(x=>x.id!==e.id).slice(0,5);
+      if(!items.length){ box.innerHTML=""; return; }
+      box.innerHTML=`<div class="sec">Related entries</div>`+items.map(x=>
+        `<div class="relrow" data-act="entry" data-arg="${esc(x.id)}">
+          <span class="au ${AUTHOR_CLASS(x.author)}" style="color:var(--ac)">${esc(x.author)}</span>
+          <span class="rt">${esc(x.title)}</span>
+          <span class="rd">${esc((x.ts||'').slice(0,10))}</span></div>`).join("");
+    }catch(err){ box.innerHTML=""; }
+  }
+  window.openEntry=openEntry;
+  window.toggleMd=()=>{ renderMode = renderMode==="render"?"raw":"render"; openEntry(state.sel); };
+  window.byTag=t=>{ state.tag=t; state.view="feed"; save(); renderTags(); renderFeed(); renderNav(); };
+
+  // ── chrome ────────────────────────────────────────────────────────────
+  function renderNav(){
+    document.getElementById("nav").innerHTML = PAGES.map(p=>
+      `<div class="navlink ${state.view===p.id?'active':''}" data-act="go" data-arg="${esc(p.id)}"><span>${p.icon}</span>${esc(p.label)}</div>`).join("");
+  }
+  function renderAuthors(s){
+    const list=[["all","all",s.total]].concat(Object.entries(s.by_author||{}).sort((a,b)=>b[1]-a[1]).map(([a,n])=>[a,a,n]));
+    document.getElementById("authors").innerHTML = list.map(([id,lbl,n])=>
+      `<div class="navlink ${AUTHOR_CLASS(id==='all'?'unknown':id)} ${state.author===id?'active':''}" style="color:${state.author===id?'var(--ac)':''}" data-act="author" data-arg="${esc(id)}">${esc(lbl)}<span class="ct">${n}</span></div>`).join("");
+  }
+  function renderClasses(s){
+    const order=["journal","pipeline-alert","transcript","legacy","all"];
+    const counts=s.by_source_class||{};
+    document.getElementById("classes").innerHTML = order.map(cl=>{
+      const n = cl==="all"? s.total : (counts[cl]||0);
+      if(cl!=="all" && !n) return "";
+      return `<div class="navlink ${state.source_class===cl?'active':''}" data-act="class" data-arg="${esc(cl)}">${esc(cl)}<span class="ct">${n}</span></div>`;
+    }).join("");
+  }
+  function renderTags(s){
+    const tags = (s? s.top_tags : (window._tags||[]))||[]; window._tags=tags;
+    document.getElementById("tags").innerHTML = tags.slice(0,24).map(([t,n])=>
+      `<span class="chip ${state.tag===t?'active':''}" data-act="tag" data-arg="${esc(t)}" title="${esc(String(n))}">#${esc(t)}</span>`).join(" ")
+      + (state.tag?`<div class="chip" style="border-color:var(--red);color:var(--red)" data-act="tag" data-arg="">✕ clear #${esc(state.tag)}</div>`:"");
+  }
+  const VIEWS = { feed:renderFeed, days:renderDays, calendar:renderCalendar, insights:renderInsights, onthisday:renderOnThisDay, compose:renderCompose, synthesis:renderSynthesis };
+  function go(v){ state.view=v; save(); renderNav(); (VIEWS[v]||renderFeed)(); }
+  function setAuthor(a){ state.author=a; save(); refreshChrome(); render(); }
+  function setClass(c){ state.source_class=c; save(); refreshChrome(); render(); }
+
+  // ── single delegated click handler (no inline handlers → no attr-XSS) ──
+  const ACTIONS = { go, author:setAuthor, class:setClass, tag:byTag, entry:openEntry, day:openDay, togglemd:toggleMd };
+  document.addEventListener("click", ev=>{
+    const el = ev.target.closest("[data-act]");
+    if(!el) return;
+    const fn = ACTIONS[el.dataset.act];
+    if(fn) fn(el.dataset.arg || "");
+  });
+
+  function render(){ (VIEWS[state.view]||renderFeed)(); }
+  async function refreshChrome(){
+    const s=await api("/api/stats");
+    renderAuthors(s); renderClasses(s); renderTags(s);
+    document.getElementById("health").textContent =
+      `${s.total} entries · ${s.key_metric} journal · ${Object.keys(s.by_author||{}).length} authors`;
+  }
+
+  function bind(){
+    const inp=document.getElementById("search");
+    inp.value=state.q;
+    let to; inp.oninput=()=>{ clearTimeout(to); to=setTimeout(()=>{ state.q=inp.value.trim(); save(); render(); },220); };
+    document.getElementById("writeBtn").onclick=()=>go("compose");
+    const mb=document.getElementById("modeBtn");
+    const syncMode=()=>{ mb.textContent = state.smode==="hybrid"?"⌖ hybrid":"⌕ text";
+      mb.classList.toggle("on", state.smode==="hybrid"); };
+    syncMode();
+    mb.onclick=()=>{ state.smode = state.smode==="hybrid"?"text":"hybrid"; save(); syncMode(); if(state.q) render(); };
+    document.getElementById("readingBtn").onclick=()=>{
+      state.reading=!state.reading; save();
+      document.body.classList.toggle("reading", state.reading);
+      document.getElementById("readingBtn").classList.toggle("on", state.reading);
+    };
+  }
+
+  // ── SSE live refresh ────────────────────────────────────────────────────
+  function connectSSE(){
+    try{
+      const es=new EventSource("/api/events");
+      es.onmessage=()=>{ refreshChrome(); if(!state.sel||state.view!=="entry") render(); };
+      es.onerror=()=>{ es.close(); setTimeout(connectSSE, 5000); };
+    }catch(e){}
+  }
+
+  (async function init(){
+    load();
+    document.body.className = "a-unknown" + (state.reading?" reading":"");
+    document.getElementById("readingBtn").classList.toggle("on", state.reading);
+    bind(); renderNav();
+    await refreshChrome();
+    render();
+    connectSSE();
+  })();
+  </script>
+</body>
+</html>
