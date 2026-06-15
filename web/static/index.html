@@ -126,6 +126,9 @@
   textarea.input { font-family:inherit; }
   .cx-prompt { font-size:0.72rem; color:var(--sub); margin-top:9px; font-style:italic; }
   .synbar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+  .mentions { margin:0 0 14px; display:flex; align-items:center; flex-wrap:wrap; gap:4px; }
+  .mentions a.chip { text-decoration:none; }
+  .cnode text { pointer-events:none; } .cnode:hover circle { fill:#cba6f7; }
   #toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:50;
            padding:9px 16px; border-radius:7px; font-size:0.76rem; opacity:0; transition:opacity .3s;
            box-shadow:0 4px 14px #00000060; max-width:80vw; }
@@ -232,6 +235,8 @@
     {id:"insights", icon:"◔", label:"Insights"},
     {id:"onthisday", icon:"↻", label:"On this day"},
     {id:"synthesis", icon:"✦", label:"Synthesis"},
+    {id:"constellation", icon:"✸", label:"Constellation"},
+    {id:"wrapped", icon:"✦", label:"Wrapped"},
   ];
   const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   const WD=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
@@ -405,6 +410,67 @@
     });
   }
 
+  // ── Constellation — tag co-occurrence graph (circular SVG) ──────────────
+  function renderConstellation(){
+    const c=document.getElementById("content"); c.innerHTML='<span class="spin"></span>';
+    api("/api/stats").then(s=>{
+      const tags=(s.top_tags||[]).slice(0,24); const cooc=s.tag_cooccurrence||[];
+      if(!tags.length){ c.innerHTML='<div class="empty-msg">no tags.</div>'; return; }
+      const W=760,H=560,cx=W/2,cy=H/2,R=Math.min(W,H)/2-70;
+      const idx={}, mx=tags[0][1], mn=tags[tags.length-1][1];
+      const pos=tags.map(([t,n],i)=>{ const a=(i/tags.length)*2*Math.PI-Math.PI/2;
+        idx[t]=i; return {t,n,x:cx+R*Math.cos(a),y:cy+R*Math.sin(a)}; });
+      const wmax=Math.max(1,...cooc.map(e=>e.w));
+      const edges=cooc.map(e=>{ const a=pos[idx[e.a]],b=pos[idx[e.b]]; if(!a||!b) return "";
+        return `<line x1="${a.x.toFixed(1)}" y1="${a.y.toFixed(1)}" x2="${b.x.toFixed(1)}" y2="${b.y.toFixed(1)}" stroke="#cba6f7" stroke-opacity="${(0.08+e.w/wmax*0.5).toFixed(2)}" stroke-width="${(0.4+e.w/wmax*2.6).toFixed(1)}"><title>${esc(e.a)} ↔ ${esc(e.b)}: ${e.w}</title></line>`;
+      }).join("");
+      const nodes=pos.map(p=>{ const rad=6+(Math.sqrt(p.n)-Math.sqrt(mn))/(Math.sqrt(mx)-Math.sqrt(mn)||1)*16;
+        return `<g class="cnode" data-act="tag" data-arg="${esc(p.t)}" style="cursor:pointer">
+          <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${rad.toFixed(1)}" fill="#89b4fa" fill-opacity="0.85"><title>${esc(p.t)}: ${p.n}</title></circle>
+          <text x="${p.x.toFixed(1)}" y="${(p.y- rad -3).toFixed(1)}" text-anchor="middle" font-size="11" fill="#bac2de">${esc(p.t)}</text></g>`;
+      }).join("");
+      c.innerHTML=`<div class="toprow"><strong>✸ Tag constellation</strong>
+        <span class="health">${tags.length} tags · ${cooc.length} co-occurrence links · click a star to filter</span></div>
+        <div class="panel" style="overflow:auto"><svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:${W}px;display:block;margin:0 auto">${edges}${nodes}</svg></div>`;
+    });
+  }
+
+  // ── Wrapped — year in review (client aggregation, no backend coupling) ───
+  function renderWrapped(){
+    const c=document.getElementById("content"); c.innerHTML='<span class="spin"></span>';
+    api("/api/stats").then(s=>{
+      const years=[...new Set(Object.keys(s.by_day||{}).filter(Boolean).map(d=>d.slice(0,4)))].sort().reverse();
+      const y=state.wrapYear && years.includes(state.wrapYear) ? state.wrapYear : years[0];
+      if(!y){ c.innerHTML='<div class="empty-msg">no dated entries.</div>'; return; }
+      const bar=`<div class="synbar">${years.map(yr=>`<button class="btn ${yr===y?'on':''}" data-wy="${yr}">${yr}</button>`).join("")}</div>`;
+      api("/api/list?"+new URLSearchParams({from:y+"-01-01",to:y+"-12-31T23:59:59",source_class:"all",limit:"9999"})).then(items=>{
+        const auth={},tags={},hour=new Array(24).fill(0),byDay={}; let words=0;
+        items.forEach(e=>{ auth[e.author]=(auth[e.author]||0)+1;
+          (e.tags||[]).forEach(t=>tags[t]=(tags[t]||0)+1);
+          const h=e.ts.slice(11,13); if(/^\d\d$/.test(h)) hour[+h]++;
+          byDay[e.ts.slice(0,10)]=(byDay[e.ts.slice(0,10)]||0)+1; });
+        const busiest=Object.entries(byDay).sort((a,b)=>b[1]-a[1])[0]||["—",0];
+        const topAuthor=Object.entries(auth).sort((a,b)=>b[1]-a[1])[0]||["—",0];
+        const topTags=Object.entries(tags).sort((a,b)=>b[1]-a[1]).slice(0,12);
+        const peakHour=hour.indexOf(Math.max(...hour));
+        const st=streaks(byDay);
+        c.innerHTML=bar+`<div class="wrapped">
+          <div class="cards">
+            <div class="card"><div class="ck">${items.length}</div><div class="cl">entries in ${y}</div></div>
+            <div class="card"><div class="ck">${Object.keys(byDay).length}</div><div class="cl">days journaled</div></div>
+            <div class="card"><div class="ck">${st.max}</div><div class="cl">longest streak</div></div>
+            <div class="card"><div class="ck">${String(peakHour).padStart(2,'0')}:00</div><div class="cl">peak writing hour</div></div>
+          </div>
+          <div class="panel"><h3>Busiest day</h3><div>${esc(busiest[0])} — <strong>${busiest[1]}</strong> entries</div></div>
+          <div class="panel"><h3>Most active voice</h3><div class="au ${AUTHOR_CLASS(topAuthor[0])}" style="color:var(--ac)">${esc(topAuthor[0])}</div> — ${topAuthor[1]} entries</div>
+          <div class="panel"><h3>Defining themes of ${y}</h3><div class="cloud">${cloud(topTags)}</div></div>
+          <div class="panel"><h3>Rhythm</h3><div class="barrow" style="--n:24">${bars(hour,Array.from({length:24},(_,i)=>i%6===0?i:""))}</div></div>
+        </div>`;
+        c.querySelectorAll("[data-wy]").forEach(b=>b.onclick=()=>{ state.wrapYear=b.dataset.wy; save(); renderWrapped(); });
+      });
+    });
+  }
+
   // ── Synthesis (display-only LLM reflection) ─────────────────────────────
   const SYN_KINDS = [
     {k:"week", label:"This week", icon:"📅"},
@@ -483,6 +549,15 @@
     $("cx-title").focus();
   }
 
+  // cross-plugin: surface task-NNN mentions, linking to the backlog webui
+  const BACKLOG_WEBUI = "http://localhost:6420";
+  function backlogMentions(body){
+    const ids=[...new Set((String(body).match(/\btask-(\d+)/gi)||[]).map(s=>s.toLowerCase()))].slice(0,12);
+    if(!ids.length) return "";
+    const chips=ids.map(id=>`<a class="chip" href="${BACKLOG_WEBUI}/?q=${encodeURIComponent(id)}" target="_blank" rel="noopener">⎘ ${esc(id)}</a>`).join(" ");
+    return `<div class="mentions"><span class="sec" style="margin:0 6px 0 0">Backlog</span>${chips}</div>`;
+  }
+
   let renderMode = "render"; // render | raw
   async function openEntry(id){
     state.sel=id; save();
@@ -504,6 +579,7 @@
       <div class="rmeta"><span class="au">${esc(e.author)}</span> · ${esc(fmtTs(e.ts))}
         · ${esc(e.source_class)}${e.has_fm?"":" · <em>unfenced</em>"}</div>
       ${tags?`<div style="margin-bottom:14px">${tags}</div>`:""}
+      ${backlogMentions(e.body_md)}
       ${body}
       <div class="navrow">${nb(e.older,"← older")}${nb(e.newer,"newer →")}</div>
       <div id="related"><div class="sec">Related entries</div><span class="spin"></span></div>
@@ -553,7 +629,7 @@
       `<span class="chip ${state.tag===t?'active':''}" data-act="tag" data-arg="${esc(t)}" title="${esc(String(n))}">#${esc(t)}</span>`).join(" ")
       + (state.tag?`<div class="chip" style="border-color:var(--red);color:var(--red)" data-act="tag" data-arg="">✕ clear #${esc(state.tag)}</div>`:"");
   }
-  const VIEWS = { feed:renderFeed, days:renderDays, calendar:renderCalendar, insights:renderInsights, onthisday:renderOnThisDay, compose:renderCompose, synthesis:renderSynthesis };
+  const VIEWS = { feed:renderFeed, days:renderDays, calendar:renderCalendar, insights:renderInsights, onthisday:renderOnThisDay, compose:renderCompose, synthesis:renderSynthesis, constellation:renderConstellation, wrapped:renderWrapped };
   function go(v){ state.view=v; save(); renderNav(); (VIEWS[v]||renderFeed)(); }
   function setAuthor(a){ state.author=a; save(); refreshChrome(); render(); }
   function setClass(c){ state.source_class=c; save(); refreshChrome(); render(); }

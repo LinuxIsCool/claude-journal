@@ -389,6 +389,21 @@ class JournalAccessor:
         journal_n = by_class.get("journal", 0)
         top_tags = sorted(tag_counts.items(), key=lambda kv: kv[1], reverse=True)[:40]
 
+        # tag co-occurrence among the top-24 tags (bounded → cheap), for the
+        # constellation view. Symmetric pairs keyed "a|b" (a<b).
+        cloud_set = {t for t, _ in top_tags[:24]}
+        cooc: dict[str, int] = {}
+        for r in recs:
+            ts_ = sorted(t for t in r["tags"] if t in cloud_set)
+            for i in range(len(ts_)):
+                for j in range(i + 1, len(ts_)):
+                    cooc[f"{ts_[i]}|{ts_[j]}"] = cooc.get(f"{ts_[i]}|{ts_[j]}", 0) + 1
+        tag_cooccurrence = sorted(
+            ({"a": k.split("|")[0], "b": k.split("|")[1], "w": v}
+             for k, v in cooc.items() if v >= 2),
+            key=lambda e: e["w"], reverse=True,
+        )[:60]
+
         # tag_trends: top 8 tags × sorted months → stacked-stream series.
         trend_tags = [t for t, _ in top_tags[:8]]
         months = sorted({m for t in trend_tags for m in tag_by_month.get(t, {})})
@@ -410,6 +425,7 @@ class JournalAccessor:
             "by_weekday": by_weekday,
             "top_tags": top_tags,
             "tag_trends": tag_trends,
+            "tag_cooccurrence": tag_cooccurrence,
             "latest": recs[0]["ts"] if recs else None,
         }
 
