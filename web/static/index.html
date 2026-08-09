@@ -238,6 +238,16 @@
     {id:"constellation", icon:"✸", label:"Constellation"},
     {id:"wrapped", icon:"✦", label:"Wrapped"},
   ];
+  const ROUTABLE_VIEWS = new Set(PAGES.map(p=>p.id).concat(["compose"]));
+  function requestedView(){
+    const view = new URLSearchParams(location.search).get("view") || "feed";
+    return ROUTABLE_VIEWS.has(view) ? view : "feed";
+  }
+  function writeViewUrl(view, replace){
+    const url = new URL(location.href);
+    url.searchParams.set("view", view);
+    history[replace ? "replaceState" : "pushState"]({}, "", url);
+  }
   const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   const WD=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 
@@ -630,7 +640,11 @@
       + (state.tag?`<div class="chip" style="border-color:var(--red);color:var(--red)" data-act="tag" data-arg="">✕ clear #${esc(state.tag)}</div>`:"");
   }
   const VIEWS = { feed:renderFeed, days:renderDays, calendar:renderCalendar, insights:renderInsights, onthisday:renderOnThisDay, compose:renderCompose, synthesis:renderSynthesis, constellation:renderConstellation, wrapped:renderWrapped };
-  function go(v){ state.view=v; save(); renderNav(); (VIEWS[v]||renderFeed)(); }
+  function go(v){
+    state.view=ROUTABLE_VIEWS.has(v)?v:"feed";
+    save(); writeViewUrl(state.view, false); renderNav();
+    (VIEWS[state.view]||renderFeed)();
+  }
   function setAuthor(a){ state.author=a; save(); refreshChrome(); render(); }
   function setClass(c){ state.source_class=c; save(); refreshChrome(); render(); }
 
@@ -644,6 +658,9 @@
   });
 
   function render(){ (VIEWS[state.view]||renderFeed)(); }
+  window.addEventListener("popstate", ()=>{
+    state.view=requestedView(); save(); renderNav(); render();
+  });
   async function refreshChrome(){
     const s=await api("/api/stats");
     renderAuthors(s); renderClasses(s); renderTags(s);
@@ -679,6 +696,8 @@
 
   (async function init(){
     load();
+    state.view=requestedView();
+    writeViewUrl(state.view, true);
     document.body.className = "a-unknown" + (state.reading?" reading":"");
     document.getElementById("readingBtn").classList.toggle("on", state.reading);
     bind(); renderNav();

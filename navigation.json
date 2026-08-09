@@ -10,7 +10,6 @@
     {"id": "synthesis", "label": "Synthesis", "href": "/journal/?view=synthesis"},
     {"id": "constellation", "label": "Constellation", "href": "/journal/?view=constellation"},
     {"id": "wrapped", "label": "Wrapped", "href": "/journal/?view=wrapped"},
-    {"id": "integrity", "label": "Integrity", "href": "/journal/?view=integrity", "keywords": ["audit", "completeness", "health"]},
     {"id": "write", "label": "Write entry", "href": "/journal/?view=compose", "aliases": ["compose", "new entry"], "keywords": ["create", "journal entry"]}
   ]
 }
