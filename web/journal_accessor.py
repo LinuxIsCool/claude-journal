@@ -25,7 +25,7 @@ from __future__ import annotations
 import hashlib
 import re
 import time
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -156,8 +156,23 @@ class JournalAccessor:
 
         # ts — frontmatter alias → path → filename → mtime
         ts = ""
-        for f in _TS_FIELDS:
+        # `created_at` is the canonical field in legion.journal/v3 and was absent
+        # from this chain, which predates the schema. A schema-correct entry
+        # therefore matched none of _TS_FIELDS, fell through to the path branch
+        # below, and was served at minute precision stamped +00:00 instead of
+        # local — every displayed time seven hours out. Nothing errored, because
+        # the fallback chain exists precisely to absorb a miss.
+        #
+        # The isinstance guard is part of the fix, not decoration. yaml.safe_load
+        # turns an UNQUOTED created_at into a datetime whose str() renders a
+        # space instead of "T", and _load() sorts ts lexicographically, so
+        # taking it as a string would put those entries out of order (' ' < 'T').
+        # isoformat() normalizes both spellings to one canonical form.
+        for f in ("created_at", *_TS_FIELDS):
             v = fm.get(f)
+            if isinstance(v, (datetime, date)):
+                ts = v.isoformat()
+                break
             if v and _RE_ISO_LIKE.match(str(v).strip()):
                 ts = str(v).strip()
                 break
